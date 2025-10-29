@@ -1536,11 +1536,36 @@ void SpanBuilder::setOperationName(kj::ConstString operationName) {
   }
 }
 
-void SpanBuilder::setTag(kj::ConstString key, TagValue value) {
+void SpanBuilder::setTag(kj::ConstString key, TagInitValue value) {
   KJ_IF_SOME(s, span) {
+    // We allow passing a LiteralStringConst or StringPtr so that we don't have to allocate memory
+    // if we're not being observed.
+    TagValue v = [](TagInitValue& value) -> Span::TagValue {
+      KJ_SWITCH_ONEOF(value) {
+        KJ_CASE_ONEOF(str, kj::StringPtr) {
+          return kj::str(str);
+        }
+        KJ_CASE_ONEOF(str, kj::LiteralStringConst) {
+          return kj::str(str);
+        }
+        KJ_CASE_ONEOF(str, kj::String) {
+          return kj::mv(str);
+        }
+        KJ_CASE_ONEOF(val, int64_t) {
+          return val;
+        }
+        KJ_CASE_ONEOF(val, double) {
+          return val;
+        }
+        KJ_CASE_ONEOF(val, bool) {
+          return val;
+        }
+      }
+      KJ_UNREACHABLE;
+    }(value);
+
     auto keyPtr = key.asPtr();
-    s.tags.upsert(
-        kj::mv(key), kj::mv(value), [keyPtr](TagValue& existingValue, TagValue&& newValue) {
+    s.tags.upsert(kj::mv(key), kj::mv(v), [keyPtr](TagValue& existingValue, TagValue&& newValue) {
       // This is a programming error, but not a serious one. We could alternatively just emit
       // duplicate tags and leave the Jaeger UI in charge of warning about them.
       [[maybe_unused]] static auto logged = [keyPtr]() {

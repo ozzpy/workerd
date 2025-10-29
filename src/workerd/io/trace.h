@@ -1063,7 +1063,12 @@ class SpanBuilder {
   using TagValue = Span::TagValue;
   // `key` must point to memory that will remain valid all the way until this span's data is
   // serialized.
-  void setTag(kj::ConstString key, TagValue value);
+  // Extended set of supported types to elide memory allocations when we have a string literal or
+  // are not being observed.
+  using TagInitValue =
+      kj::OneOf<kj::StringPtr, kj::String, kj::LiteralStringConst, bool, double, int64_t>;
+
+  void setTag(kj::ConstString key, TagInitValue value);
 
   // `key` must point to memory that will remain valid all the way until this span's data is
   // serialized.
