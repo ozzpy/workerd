@@ -636,7 +636,7 @@ kj::Own<kj::HttpClient> Cache::getHttpClient(IoContext& context,
       cacheName.map([&](kj::String& n) {
     return cacheClient->getNamespace(n, kj::mv(metadata));
   }).orDefault([&]() { return cacheClient->getDefault(kj::mv(metadata)); });
-  return httpClient;
+  return httpClient.attach(kj::mv(cacheClient));
 }
 
 // =======================================================================================
